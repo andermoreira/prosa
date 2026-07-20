@@ -1,0 +1,216 @@
+version: 1
+resources:
+  - id: node-runtime
+    type: tool
+    executable: node
+    args: []
+    capabilities: [process:execute]
+    envAllowlist: [HOME, NO_COLOR, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 600000
+    maxOutputBytes: 4194304
+    readOnly: false
+    gateSandbox: &gate-sandbox
+      required: true
+      engine: "@anthropic-ai/sandbox-runtime"
+      version: 0.0.66
+      networkDomains: []
+      allowUnixSockets: false
+      allowLocalBinding: false
+  - id: bash-runtime
+    type: tool
+    executable: bash
+    args: []
+    capabilities: [process:execute]
+    envAllowlist: [HOME, IA_VERIFY_STRICT, NO_COLOR, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 600000
+    maxOutputBytes: 4194304
+    readOnly: false
+    gateSandbox: *gate-sandbox
+  - id: git
+    type: tool
+    executable: git
+    args: []
+    capabilities: [git:read]
+    envAllowlist: [HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 1048576
+    readOnly: true
+  - id: gh
+    type: tool
+    executable: gh
+    args: []
+    capabilities: [github:read, github:pull-request:create]
+    envAllowlist: [GH_CONFIG_DIR, GH_HOST, HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 60000
+    maxOutputBytes: 1048576
+    readOnly: false
+  - id: opencode
+    type: agent
+    model: opencode-go/grok-4.5
+    role: executor
+    executable: opencode
+    args: [run]
+    capabilities: [filesystem:read, filesystem:write, process:execute]
+    envAllowlist: [HOME, NO_COLOR, OPENCODE_API_KEY, OPENCODE_CONFIG, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 1800000
+    maxOutputBytes: 4194304
+    readOnly: false
+    sandbox: &opencode-executor-sandbox
+      required: true
+      engine: "@anthropic-ai/sandbox-runtime"
+      version: 0.0.66
+      networkDomains: [opencode.ai, github.com, api.github.com, raw.githubusercontent.com, objects.githubusercontent.com, registry.npmjs.org]
+      denySensitiveFiles: true
+      allowUnixSockets: false
+      allowLocalBinding: false
+  - id: opencode-reviewer
+    type: agent
+    model: opencode-go/grok-4.5
+    role: reviewer
+    executable: opencode
+    args: [run]
+    capabilities: [filesystem:read]
+    envAllowlist: [HOME, NO_COLOR, OPENCODE_API_KEY, OPENCODE_CONFIG, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 900000
+    maxOutputBytes: 2097152
+    readOnly: true
+    sandbox: &opencode-readonly-sandbox
+      required: true
+      engine: "@anthropic-ai/sandbox-runtime"
+      version: 0.0.66
+      networkDomains: [opencode.ai]
+      denySensitiveFiles: true
+      allowUnixSockets: false
+      allowLocalBinding: false
+  - id: opencode-diagnostician
+    type: agent
+    model: opencode-go/grok-4.5
+    role: diagnostician
+    executable: opencode
+    args: [run]
+    capabilities: [filesystem:read]
+    envAllowlist: [HOME, NO_COLOR, OPENCODE_API_KEY, OPENCODE_CONFIG, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 900000
+    maxOutputBytes: 2097152
+    readOnly: true
+    sandbox: *opencode-readonly-sandbox
+  - id: cursor-cli
+    type: agent
+    model: cursor-grok-4.5-medium
+    role: executor
+    executable: agent
+    args: []
+    capabilities: [filesystem:read, filesystem:write, process:execute]
+    envAllowlist: [CURSOR_API_KEY, HOME, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 1800000
+    maxOutputBytes: 4194304
+    readOnly: false
+    sandbox: &cursor-executor-sandbox
+      required: true
+      engine: "@anthropic-ai/sandbox-runtime"
+      version: 0.0.66
+      networkDomains: [api2.cursor.sh, api5.cursor.sh, agent.api5.cursor.sh, agentn.api5.cursor.sh, agent.us.api5.cursor.sh, agentn.us.api5.cursor.sh, agent.global.api5.cursor.sh, agentn.global.api5.cursor.sh, authenticate.cursor.sh, authenticator.cursor.sh, marketplace.cursorapi.com, github.com, api.github.com, raw.githubusercontent.com, objects.githubusercontent.com, registry.npmjs.org]
+      denySensitiveFiles: true
+      allowUnixSockets: false
+      allowLocalBinding: false
+  - id: cursor-cli-reviewer
+    type: agent
+    model: cursor-grok-4.5-medium
+    role: reviewer
+    executable: agent
+    args: []
+    capabilities: [filesystem:read]
+    envAllowlist: [CURSOR_API_KEY, HOME, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 900000
+    maxOutputBytes: 2097152
+    readOnly: true
+    sandbox: &cursor-readonly-sandbox
+      required: true
+      engine: "@anthropic-ai/sandbox-runtime"
+      version: 0.0.66
+      networkDomains: [api2.cursor.sh, api5.cursor.sh, agent.api5.cursor.sh, agentn.api5.cursor.sh, agent.us.api5.cursor.sh, agentn.us.api5.cursor.sh, agent.global.api5.cursor.sh, agentn.global.api5.cursor.sh, authenticate.cursor.sh, authenticator.cursor.sh, marketplace.cursorapi.com]
+      denySensitiveFiles: true
+      allowUnixSockets: false
+      allowLocalBinding: false
+  - id: cursor-cli-diagnostician
+    type: agent
+    model: cursor-grok-4.5-medium
+    role: diagnostician
+    executable: agent
+    args: []
+    capabilities: [filesystem:read]
+    envAllowlist: [CURSOR_API_KEY, HOME, PATH, TMPDIR]
+    cwd: worktree-root
+    timeoutMs: 900000
+    maxOutputBytes: 2097152
+    readOnly: true
+    sandbox: *cursor-readonly-sandbox
+  - id: notifier-macos
+    type: notifier
+    executable: /usr/bin/osascript
+    args: [-e, "on run argv", -e, "display notification (item 1 of argv) with title \"IA workflow\"", -e, "end run"]
+    capabilities: [notification:send, platform:macos]
+    envAllowlist: [HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 10000
+    maxOutputBytes: 65536
+    readOnly: true
+  - id: notifier-linux
+    type: notifier
+    executable: notify-send
+    args: [IA workflow]
+    capabilities: [notification:send, platform:linux]
+    envAllowlist: [DBUS_SESSION_BUS_ADDRESS, DISPLAY, HOME, PATH, TMPDIR, WAYLAND_DISPLAY]
+    cwd: repo-root
+    timeoutMs: 10000
+    maxOutputBytes: 65536
+    readOnly: true
+  - id: notifier-terminal
+    type: notifier
+    executable: tee
+    args: [/dev/stderr]
+    capabilities: [notification:send, platform:terminal]
+    envAllowlist: [PATH]
+    cwd: repo-root
+    timeoutMs: 10000
+    maxOutputBytes: 65536
+    readOnly: true
+  - id: context7
+    type: mcp-server
+    executable: npx
+    args: [-y, "@upstash/context7-mcp"]
+    capabilities: [mcp:tools]
+    envAllowlist: [HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    readOnly: true
+  - id: websearch
+    type: mcp-server
+    executable: npx
+    args: [-y, "@anthropic/mcp-server-brave-search"]
+    capabilities: [mcp:tools]
+    envAllowlist: [BRAVE_API_KEY, HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    readOnly: true
+  - id: gh-grep
+    type: mcp-server
+    executable: npx
+    args: [-y, "@anthropic/mcp-server-github"]
+    capabilities: [mcp:tools]
+    envAllowlist: [GITHUB_TOKEN, HOME, PATH, TMPDIR]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    readOnly: true

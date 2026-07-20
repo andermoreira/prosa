@@ -1,0 +1,38 @@
+schemaVersion: 1.0.0
+decisionSemanticsVersion: 1.0.0
+levels:
+  - {id: autonomous, rank: 0}
+  - {id: approval_required, rank: 1}
+  - {id: restricted, rank: 2}
+legacyStep:
+  schemaVersion: 1.0.0
+  level: restricted
+  signalKind: legacy-step-without-change-type
+  reason: Legacy step without changeType is restricted
+changeTypes:
+  bugfix: autonomous
+  test: autonomous
+  vetted_dependency: autonomous
+  documentation: autonomous
+  feature: approval_required
+  api_contract: approval_required
+  database_migration: approval_required
+  architecture: restricted
+  security: restricted
+  irreversible: restricted
+  infrastructure: restricted
+  permissions: restricted
+areaRules:
+  - {id: github-workflows, prefix: .github/workflows/, minimumLevel: restricted}
+  - {id: security-policy, prefix: docs/standards/security/, minimumLevel: restricted}
+  - {id: database-migrations, prefix: database/migrations/, minimumLevel: restricted}
+  - {id: workflow-runtime, prefix: scripts/workflow/, minimumLevel: restricted}
+  - {id: workflow-policy, prefix: workflow/, minimumLevel: restricted}
+  - {id: schemas, prefix: schemas/, minimumLevel: approval_required}
+  - {id: architecture-decisions, prefix: adr/, minimumLevel: approval_required}
+limits:
+  maxPolicyBytes: 65536
+  maxSignals: 128
+  maxReasonLength: 2000
+  maxEvidenceRefs: 20
+  maxEvidenceRefLength: 256

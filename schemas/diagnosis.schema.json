@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ia.local/schemas/diagnosis.schema.json",
+  "title": "Machine-readable read-only diagnosis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "rootCause",
+    "confidence",
+    "evidence",
+    "recommendedAction",
+    "scopeImpact",
+    "requiresHumanDecision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "rootCause": { "$ref": "#/$defs/nonEmptyString" },
+    "confidence": { "enum": ["low", "medium", "high"] },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "recommendedAction": { "$ref": "#/$defs/nonEmptyString" },
+    "scopeImpact": { "$ref": "#/$defs/nonEmptyString" },
+    "requiresHumanDecision": { "type": "boolean" }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 }
+  }
+}

@@ -1,0 +1,747 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ia.local/schemas/state.schema.json",
+  "title": "Workflow runtime state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "revision",
+    "repo",
+    "spec",
+    "state",
+    "transitions",
+    "lock",
+    "usage",
+    "steps",
+    "attempts",
+    "commits",
+    "findings",
+    "worktrees",
+    "artifacts",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "enum": ["2.0.0", "3.0.0"] },
+    "runId": { "$ref": "#/$defs/runId" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "repo": { "$ref": "#/$defs/repo" },
+    "spec": { "$ref": "#/$defs/specSnapshot" },
+    "state": { "$ref": "#/$defs/runState" },
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "lock": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/lock" }
+      ]
+    },
+    "usage": { "$ref": "#/$defs/usage" },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stepStateRecord" }
+    },
+    "attempts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/attempt" }
+    },
+    "commits": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commit" }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "worktrees": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/worktree" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "createdAt": { "$ref": "#/$defs/timestamp" },
+    "updatedAt": { "$ref": "#/$defs/timestamp" }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "absolutePath": { "type": "string", "pattern": "^/" },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "stepId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-step-[1-9][0-9]*$" },
+    "artifactId": { "type": "string", "pattern": "^artifact-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "attemptId": { "type": "string", "pattern": "^attempt-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "approvalRequestId": { "type": "string", "pattern": "^approval-[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+    "approvalDecisionId": { "type": "string", "pattern": "^decision-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "reservationId": { "type": "string", "pattern": "^reservation-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "runState": {
+      "enum": [
+        "CREATED",
+        "VALIDATED",
+        "LOCKED",
+        "RUNNING",
+        "FINAL_REVIEW",
+        "GLOBAL_ACCEPTANCE",
+        "REPORTING",
+        "SUCCEEDED",
+        "BLOCKED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "stepState": {
+      "enum": [
+        "PENDING",
+        "READY",
+        "AWAITING_PRE_APPROVAL",
+        "WORKTREE_READY",
+        "EXECUTING",
+        "GATING",
+        "REVALIDATING",
+        "REVIEWING",
+        "AWAITING_DIFF_APPROVAL",
+        "ACCEPTING",
+        "ACCEPTED",
+        "COMMITTED",
+        "RETRY_PENDING",
+        "DIAGNOSING",
+        "BLOCKED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "stateKind": { "enum": ["run", "step"] },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "stepId", "from", "to", "at", "cause", "usageRevision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^transition-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "kind": { "$ref": "#/$defs/stateKind" },
+        "stepId": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stepId" }
+          ]
+        },
+        "from": {
+          "anyOf": [
+            { "$ref": "#/$defs/runState" },
+            { "$ref": "#/$defs/stepState" }
+          ]
+        },
+        "to": {
+          "anyOf": [
+            { "$ref": "#/$defs/runState" },
+            { "$ref": "#/$defs/stepState" }
+          ]
+        },
+        "at": { "$ref": "#/$defs/timestamp" },
+        "cause": { "$ref": "#/$defs/nonEmptyString" },
+        "usageRevision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "realRoot", "identity", "baseSha", "parentSha"],
+      "properties": {
+        "root": { "$ref": "#/$defs/absolutePath" },
+        "realRoot": { "$ref": "#/$defs/absolutePath" },
+        "identity": { "$ref": "#/$defs/hash" },
+        "baseSha": { "$ref": "#/$defs/gitSha" },
+        "parentSha": { "$ref": "#/$defs/gitSha" }
+      }
+    },
+    "specSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "hash", "stepsHash", "notesHash", "schemasHash", "catalogsHash", "policyHash", "dagHash"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "path": { "$ref": "#/$defs/path" },
+        "hash": { "$ref": "#/$defs/hash" },
+        "stepsHash": { "$ref": "#/$defs/hash" },
+        "notesHash": { "$ref": "#/$defs/hash" },
+        "schemasHash": { "$ref": "#/$defs/hash" },
+        "catalogsHash": { "$ref": "#/$defs/hash" },
+        "policyHash": { "$ref": "#/$defs/hash" },
+        "dagHash": { "$ref": "#/$defs/hash" },
+        "riskPolicyHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repoIdentity", "runId", "pid", "host", "acquiredAt", "heartbeatAt", "recovery"],
+      "properties": {
+        "repoIdentity": { "$ref": "#/$defs/hash" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "pid": { "type": "integer", "minimum": 1 },
+        "host": { "$ref": "#/$defs/nonEmptyString" },
+        "acquiredAt": { "$ref": "#/$defs/timestamp" },
+        "heartbeatAt": { "$ref": "#/$defs/timestamp" },
+        "recovery": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["processAbsenceProven", "identityMatched", "confirmedBy", "confirmedAt"],
+              "properties": {
+                "processAbsenceProven": { "const": true },
+                "identityMatched": { "const": true },
+                "confirmedBy": { "$ref": "#/$defs/nonEmptyString" },
+                "confirmedAt": { "$ref": "#/$defs/timestamp" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "integerMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "consumed", "reserved"],
+      "properties": {
+        "limit": { "type": "integer", "minimum": 1 },
+        "consumed": { "type": "integer", "minimum": 0 },
+        "reserved": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "numberMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "consumed", "reserved"],
+      "properties": {
+        "limit": { "type": "number", "exclusiveMinimum": 0 },
+        "consumed": { "type": "number", "minimum": 0 },
+        "reserved": { "type": "number", "minimum": 0 }
+      }
+    },
+    "nullableIntegerMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "consumed", "reserved"],
+      "properties": {
+        "limit": { "type": ["integer", "null"], "minimum": 1 },
+        "consumed": { "type": ["integer", "null"], "minimum": 0 },
+        "reserved": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nullableNumberMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "consumed", "reserved"],
+      "properties": {
+        "limit": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "consumed": { "type": ["number", "null"], "minimum": 0 },
+        "reserved": { "type": "number", "minimum": 0 }
+      }
+    },
+    "usageCounters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempts", "agentCalls", "agentCallsByRole", "reviewCycles", "diagnosisCycles", "elapsedMinutes", "estimatedCost", "tokens"],
+      "properties": {
+        "attempts": { "$ref": "#/$defs/integerMetric" },
+        "agentCalls": { "$ref": "#/$defs/integerMetric" },
+        "agentCallsByRole": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["executor", "reviewer", "diagnostician"],
+          "properties": {
+            "executor": { "type": "integer", "minimum": 0 },
+            "reviewer": { "type": "integer", "minimum": 0 },
+            "diagnostician": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "reviewCycles": { "$ref": "#/$defs/integerMetric" },
+        "diagnosisCycles": { "$ref": "#/$defs/integerMetric" },
+        "elapsedMinutes": { "$ref": "#/$defs/numberMetric" },
+        "estimatedCost": { "$ref": "#/$defs/nullableNumberMetric" },
+        "tokens": { "$ref": "#/$defs/nullableIntegerMetric" }
+      }
+    },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stepId", "metric", "amount", "status", "reservedAt", "reconciledAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/reservationId" },
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "metric": { "enum": ["attempts", "agentCalls", "reviewCycles", "diagnosisCycles", "elapsedMinutes", "estimatedCost", "tokens"] },
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "status": { "enum": ["reserved", "consumed", "released", "reconciliation-required"] },
+        "reservedAt": { "$ref": "#/$defs/timestamp" },
+        "reconciledAt": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        }
+      }
+    },
+    "stepUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stepId", "counters"],
+      "properties": {
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "counters": { "$ref": "#/$defs/usageCounters" }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "total", "perStep", "reservations", "timing"],
+      "properties": {
+        "revision": { "type": "integer", "minimum": 0 },
+        "total": { "$ref": "#/$defs/usageCounters" },
+        "perStep": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stepUsage" }
+        },
+        "reservations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reservation" }
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["totalActiveMs", "activeMsByStep"],
+          "properties": {
+            "totalActiveMs": { "type": "number", "minimum": 0 },
+            "activeMsByStep": {
+              "type": "object",
+              "additionalProperties": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptanceCriterionId", "artifactId", "hash", "fresh"],
+      "properties": {
+        "acceptanceCriterionId": { "type": "string", "pattern": "^AC-[0-9]{2,}$" },
+        "artifactId": { "$ref": "#/$defs/artifactId" },
+        "hash": { "$ref": "#/$defs/hash" },
+        "fresh": { "type": "boolean" }
+      }
+    },
+    "stepStateRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "state", "parentSha", "attemptIds", "worktreeId", "gateIds", "evidence", "findingIds", "commitIds", "updatedAt", "cause", "sandbox"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stepId" },
+        "state": { "$ref": "#/$defs/stepState" },
+        "parentSha": { "$ref": "#/$defs/gitSha" },
+        "attemptIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/attemptId" }
+        },
+        "worktreeId": { "type": ["string", "null"], "pattern": "^worktree-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "gateIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$" }
+        },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidenceRef" } },
+        "findingIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^finding-[A-Za-z0-9][A-Za-z0-9._-]*$" } },
+        "commitIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^commit-[A-Za-z0-9][A-Za-z0-9._-]*$" } },
+        "updatedAt": { "$ref": "#/$defs/timestamp" },
+        "cause": { "type": ["string", "null"], "minLength": 1 },
+        "sandbox": { "$ref": "#/$defs/stepSandbox" },
+        "risk": { "$ref": "#/$defs/stepRisk" }
+      }
+    },
+    "riskLevel": { "enum": ["autonomous", "approval_required", "restricted"] },
+    "riskPolicyOrigin": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "enum": ["filesystem", "memory", "test"] },
+            "path": { "$ref": "#/$defs/path" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "baseSha", "path"],
+          "properties": {
+            "type": { "const": "git" },
+            "baseSha": { "$ref": "#/$defs/gitSha" },
+            "path": { "$ref": "#/$defs/path" }
+          }
+        }
+      ]
+    },
+    "riskAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "policy", "step", "typeLevel", "baseLevel", "effectiveLevel", "matchedAreaRules", "signals", "legacySignal", "hash", "evaluatedAt"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "policy": {
+          "type": "object", "additionalProperties": false, "required": ["schemaVersion", "hash", "origin"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "hash": { "$ref": "#/$defs/hash" },
+            "origin": { "$ref": "#/$defs/riskPolicyOrigin" }
+          }
+        },
+        "step": {
+          "type": "object", "additionalProperties": false, "required": ["schemaVersion", "changeType"],
+          "properties": {
+            "schemaVersion": { "enum": ["1.0.0", "2.0.0"] },
+            "changeType": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$" }
+          }
+        },
+        "typeLevel": { "$ref": "#/$defs/riskLevel" },
+        "baseLevel": { "$ref": "#/$defs/riskLevel" },
+        "effectiveLevel": { "$ref": "#/$defs/riskLevel" },
+        "matchedAreaRules": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "prefix", "minimumLevel"],
+            "properties": {
+              "id": { "$ref": "#/$defs/nonEmptyString" },
+              "prefix": { "$ref": "#/$defs/path" },
+              "minimumLevel": { "$ref": "#/$defs/riskLevel" }
+            }
+          }
+        },
+        "signals": { "type": "array", "items": { "$ref": "https://ia.local/schemas/risk-signal.schema.json" } },
+        "legacySignal": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object", "additionalProperties": false, "required": ["kind", "minimumLevel", "reason"],
+              "properties": {
+                "kind": { "$ref": "#/$defs/nonEmptyString" },
+                "minimumLevel": { "const": "restricted" },
+                "reason": { "$ref": "#/$defs/nonEmptyString" }
+              }
+            }
+          ]
+        },
+        "hash": { "$ref": "#/$defs/hash" },
+        "evaluatedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "approvalBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repoIdentity", "runId", "baseSha", "specHash", "stepsHash", "stepId", "stepHash", "policyHash", "assessmentHash"],
+      "properties": {
+        "repoIdentity": { "$ref": "#/$defs/hash" },
+        "runId": { "$ref": "#/$defs/runId" },
+        "baseSha": { "$ref": "#/$defs/gitSha" },
+        "specHash": { "$ref": "#/$defs/hash" },
+        "stepsHash": { "$ref": "#/$defs/hash" },
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "stepHash": { "$ref": "#/$defs/hash" },
+        "policyHash": { "$ref": "#/$defs/hash" },
+        "assessmentHash": { "$ref": "#/$defs/hash" },
+        "attemptId": { "$ref": "#/$defs/attemptId" },
+        "parentSha": { "$ref": "#/$defs/gitSha" },
+        "worktreeId": { "type": "string", "pattern": "^worktree-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "worktreePath": { "$ref": "#/$defs/absolutePath" },
+        "worktreeHeadSha": { "$ref": "#/$defs/gitSha" },
+        "factualIdentityHash": { "$ref": "#/$defs/hash" },
+        "diffArtifactId": { "$ref": "#/$defs/artifactId" },
+        "diffHash": { "$ref": "#/$defs/hash" },
+        "snapshotSourceHash": { "$ref": "#/$defs/hash" },
+        "reviewArtifactId": { "$ref": "#/$defs/artifactId" },
+        "reviewHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "approvalRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "checkpoint", "status", "contextArtifactRef", "binding", "createdAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/approvalRequestId" },
+        "checkpoint": { "enum": ["pre-execution", "post-review"] },
+        "status": { "enum": ["pending", "satisfied", "stale", "rejected"] },
+        "contextArtifactRef": { "$ref": "#/$defs/artifactId" },
+        "binding": { "$ref": "#/$defs/approvalBinding" },
+        "createdAt": { "$ref": "#/$defs/timestamp" }
+      },
+      "allOf": [{
+        "if": { "properties": { "checkpoint": { "const": "post-review" } }, "required": ["checkpoint"] },
+        "then": {
+          "properties": {
+            "binding": {
+              "type": "object",
+              "required": ["attemptId", "parentSha", "worktreeId", "worktreePath", "worktreeHeadSha", "factualIdentityHash", "diffArtifactId", "diffHash", "snapshotSourceHash", "reviewArtifactId", "reviewHash"],
+              "properties": {
+                "attemptId": {}, "parentSha": {}, "worktreeId": {}, "worktreePath": {}, "worktreeHeadSha": {},
+                "factualIdentityHash": {},
+                "diffArtifactId": {}, "diffHash": {}, "snapshotSourceHash": {},
+                "reviewArtifactId": {}, "reviewHash": {}
+              }
+            }
+          }
+        }
+      }]
+    },
+    "approvalDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "requestId", "outcome", "nextAction", "actor", "justification", "binding", "recordedAt", "consumedAt", "consumedByTransitionId"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "$ref": "#/$defs/approvalDecisionId" },
+        "requestId": { "$ref": "#/$defs/approvalRequestId" },
+        "outcome": { "enum": ["approved", "rejected"] },
+        "nextAction": { "enum": [null, "retry", "replan", "abort"] },
+        "actor": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$", "maxLength": 128 },
+        "justification": { "type": "string", "minLength": 1, "maxLength": 2000, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$" },
+        "binding": { "$ref": "#/$defs/approvalBinding" },
+        "recordedAt": { "$ref": "#/$defs/timestamp" },
+        "consumedAt": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/timestamp" }] },
+        "consumedByTransitionId": { "type": ["string", "null"], "pattern": "^transition-[A-Za-z0-9][A-Za-z0-9._-]*$" }
+      },
+      "oneOf": [
+        { "properties": { "outcome": { "const": "approved" }, "nextAction": { "const": null } } },
+        { "properties": { "outcome": { "const": "rejected" }, "nextAction": { "enum": ["retry", "replan", "abort"] } } }
+      ]
+    },
+    "stepRisk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment", "assessmentHistory", "requests", "decisions"],
+      "properties": {
+        "assessment": { "$ref": "#/$defs/riskAssessment" },
+        "assessmentHistory": { "type": "array", "items": { "$ref": "#/$defs/riskAssessment" } },
+        "requests": { "type": "array", "items": { "$ref": "#/$defs/approvalRequest" } },
+        "decisions": { "type": "array", "items": { "$ref": "#/$defs/approvalDecision" } }
+      }
+    },
+    "sandboxEngine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "backend", "platform"],
+      "properties": {
+        "name": { "const": "@anthropic-ai/sandbox-runtime" },
+        "version": { "const": "0.0.66" },
+        "backend": { "const": "sandbox-exec" },
+        "platform": { "const": "darwin" }
+      }
+    },
+    "sandboxFilesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "readPaths", "writePaths", "denyRead", "denyWrite"],
+      "properties": {
+        "target": { "$ref": "#/$defs/absolutePath" },
+        "readPaths": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/absolutePath" } },
+        "writePaths": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/absolutePath" } },
+        "denyRead": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/absolutePath" } },
+        "denyWrite": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/absolutePath" } }
+      }
+    },
+    "sandboxPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyVersion", "engine", "role", "resourceId", "filesystem", "network", "unixSockets", "git", "policyHash"],
+      "properties": {
+        "policyVersion": { "const": "2" },
+        "engine": { "$ref": "#/$defs/sandboxEngine" },
+        "role": { "enum": ["executor", "reviewer", "diagnostician"] },
+        "resourceId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+        "filesystem": { "$ref": "#/$defs/sandboxFilesystem" },
+        "network": {
+          "type": "object", "additionalProperties": false, "required": ["mode", "allowedDomains"],
+          "properties": {
+            "mode": { "const": "allowlist" },
+            "allowedDomains": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$" } }
+          }
+        },
+        "unixSockets": { "type": "array", "maxItems": 0 },
+        "git": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "workTree", "privateGitDir", "objectDirectory", "sourceIndex", "expectedHead", "configProfile"],
+              "properties": {
+                "mode": { "const": "private-ephemeral-v1" },
+                "workTree": { "$ref": "#/$defs/absolutePath" },
+                "privateGitDir": { "$ref": "#/$defs/absolutePath" },
+                "objectDirectory": { "$ref": "#/$defs/absolutePath" },
+                "sourceIndex": { "$ref": "#/$defs/absolutePath" },
+                "expectedHead": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+                "configProfile": { "const": "status-only-v1" }
+              }
+            }
+          ]
+        },
+        "policyHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "sandboxApplication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationId", "role", "resourceId", "policyHash", "policy", "appliedAt"],
+      "properties": {
+        "operationId": { "$ref": "#/$defs/nonEmptyString" },
+        "role": { "enum": ["executor", "reviewer", "diagnostician"] },
+        "resourceId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+        "policyHash": { "$ref": "#/$defs/hash" },
+        "policy": { "$ref": "#/$defs/sandboxPolicy" },
+        "appliedAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "stepSandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyVersion", "applications"],
+      "properties": {
+        "policyVersion": { "const": "1" },
+        "applications": { "type": "array", "items": { "$ref": "#/$defs/sandboxApplication" } }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stepId", "number", "role", "status", "startedAt", "finishedAt", "artifactIds", "failureClassification", "sandboxPolicyHash"],
+      "properties": {
+        "id": { "$ref": "#/$defs/attemptId" },
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "number": { "type": "integer", "minimum": 1 },
+        "role": { "enum": ["executor", "reviewer", "diagnostician"] },
+        "status": { "enum": ["reserved", "running", "succeeded", "failed", "blocked", "cancelled", "reconciliation-required"] },
+        "startedAt": { "$ref": "#/$defs/timestamp" },
+        "finishedAt": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        },
+        "artifactIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/artifactId" } },
+        "failureClassification": { "type": ["string", "null"], "enum": [null, "transient", "schema", "authorization", "scope", "trust-boundary", "deterministic", "budget", "drift", "sanitization"] },
+        "sandboxPolicyHash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+      },
+      "allOf": [{
+        "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] },
+        "then": { "properties": { "sandboxPolicyHash": { "$ref": "#/$defs/hash" } } }
+      }]
+    },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stepId", "sha", "parentSha", "treeSha", "status", "createdAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^commit-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "sha": { "$ref": "#/$defs/gitSha" },
+        "parentSha": { "$ref": "#/$defs/gitSha" },
+        "treeSha": { "$ref": "#/$defs/gitSha" },
+        "status": { "enum": ["created", "reconciled"] },
+        "createdAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stepId", "fingerprint", "severity", "status", "summary", "artifactIds", "createdAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^finding-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "stepId": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stepId" }
+          ]
+        },
+        "fingerprint": { "$ref": "#/$defs/hash" },
+        "severity": { "enum": ["critical", "high", "medium", "low"] },
+        "status": { "enum": ["open", "duplicate", "triaged"] },
+        "summary": { "$ref": "#/$defs/nonEmptyString" },
+        "artifactIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/artifactId" } },
+        "createdAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stepId", "path", "parentSha", "headSha", "status", "createdAt", "removedAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^worktree-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "stepId": { "$ref": "#/$defs/stepId" },
+        "path": { "$ref": "#/$defs/absolutePath" },
+        "parentSha": { "$ref": "#/$defs/gitSha" },
+        "headSha": { "$ref": "#/$defs/gitSha" },
+        "status": { "enum": ["ready", "active", "dirty", "committed", "removal-pending", "removed"] },
+        "createdAt": { "$ref": "#/$defs/timestamp" },
+        "removedAt": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/timestamp" }
+          ]
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "stepId", "attemptId", "sourceHash"],
+      "properties": {
+        "runId": { "$ref": "#/$defs/runId" },
+        "stepId": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stepId" }
+          ]
+        },
+        "attemptId": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/attemptId" }
+          ]
+        },
+        "sourceHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "mediaType", "schemaVersion", "hash", "provenance", "sensitivity", "retention", "sanitization", "createdAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/artifactId" },
+        "kind": { "enum": ["normalized-input", "prompt", "diff", "stdout", "stderr", "gate-result", "review", "diagnosis", "finding", "evidence-map", "commit", "report", "retrospective", "snapshot", "approval-context"] },
+        "path": { "$ref": "#/$defs/path" },
+        "mediaType": { "type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$" },
+        "schemaVersion": { "$ref": "#/$defs/nonEmptyString" },
+        "hash": { "$ref": "#/$defs/hash" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "sensitivity": { "enum": ["public", "internal", "restricted"] },
+        "retention": { "enum": ["run", "report", "manual"] },
+        "sanitization": { "enum": ["sanitized", "redacted", "truncated"] },
+        "createdAt": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}

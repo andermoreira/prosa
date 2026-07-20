@@ -1,0 +1,385 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ia.local/schemas/step.schema.json",
+  "title": "Normalized atomic step",
+  "type": "object",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "changeType": false
+      }
+    },
+    {
+      "required": ["changeType"],
+      "properties": {
+        "schemaVersion": { "const": "2.0.0" }
+      }
+    }
+  ],
+  "required": [
+    "schemaVersion",
+    "id",
+    "sequence",
+    "specId",
+    "source",
+    "goal",
+    "boundaries",
+    "dependsOn",
+    "predictedFiles",
+    "allowedAreas",
+    "resources",
+    "context",
+    "acceptanceCriteria",
+    "budgets",
+    "verification",
+    "revalidation",
+    "documentationImpact",
+    "testing",
+    "execution"
+  ],
+  "properties": {
+    "schemaVersion": { "enum": ["1.0.0", "2.0.0"] },
+    "changeType": { "$ref": "#/$defs/changeType" },
+    "id": { "$ref": "#/$defs/stepId" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "specId": { "$ref": "#/$defs/specId" },
+    "source": { "$ref": "#/$defs/source" },
+    "goal": { "$ref": "#/$defs/nonEmptyString" },
+    "boundaries": { "$ref": "#/$defs/boundaries" },
+    "dependsOn": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/stepId" }
+    },
+    "predictedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/path" }
+    },
+    "allowedAreas": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/path" }
+    },
+    "resources": { "$ref": "#/$defs/resources" },
+    "context": { "$ref": "#/$defs/context" },
+    "acceptanceCriteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/acceptanceCriterion" }
+    },
+    "budgets": { "$ref": "#/$defs/budgets" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "revalidation": { "$ref": "#/$defs/revalidation" },
+    "documentationImpact": { "$ref": "#/$defs/documentationImpact" },
+    "testing": { "$ref": "#/$defs/testing" },
+    "execution": { "$ref": "#/$defs/execution" }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "changeType": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40,64}$" },
+    "specId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "stepId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-step-[1-9][0-9]*$" },
+    "resourceId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$" },
+    "gateId": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "hash", "baseSha"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "hash": { "$ref": "#/$defs/sha" },
+        "baseSha": { "$ref": "#/$defs/sha" }
+      }
+    },
+    "boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inScope", "outOfScope", "maxLogicalFiles"],
+      "properties": {
+        "inScope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "outOfScope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "maxLogicalFiles": { "const": 5 }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executor", "reviewer", "diagnostician", "notifications"],
+      "properties": {
+        "executor": { "$ref": "#/$defs/resourceId" },
+        "reviewer": { "$ref": "#/$defs/resourceId" },
+        "diagnostician": { "$ref": "#/$defs/resourceId" },
+        "notifications": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/resourceId" }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specPath", "stepPath", "baseSha", "implementationNoteIds"],
+      "properties": {
+        "specPath": { "$ref": "#/$defs/path" },
+        "stepPath": { "$ref": "#/$defs/path" },
+        "baseSha": { "$ref": "#/$defs/sha" },
+        "implementationNoteIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^NOTE-[0-9]{2,}$" }
+        }
+      }
+    },
+    "evidenceRequirement": {
+      "oneOf": [
+        { "$ref": "#/$defs/automatedEvidenceRequirement" },
+        { "$ref": "#/$defs/artifactEvidenceRequirement" },
+        { "$ref": "#/$defs/manualEvidenceRequirement" },
+        { "$ref": "#/$defs/legacyEvidenceRequirement" }
+      ]
+    },
+    "automatedEvidenceRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description", "gateId", "resultRef", "testSelector"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EVIDENCE-[0-9]{2,}$" },
+        "kind": { "enum": ["automated-test", "contract-test", "static-check"] },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "gateId": { "$ref": "#/$defs/gateId" },
+        "resultRef": { "$ref": "#/$defs/nonEmptyString" },
+        "testSelector": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "artifactEvidenceRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description", "resultRef"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EVIDENCE-[0-9]{2,}$" },
+        "kind": { "enum": ["artifact", "documentation"] },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "resultRef": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "manualEvidenceRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description", "resultRef", "justification", "manualRecord"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EVIDENCE-[0-9]{2,}$" },
+        "kind": { "const": "manual-inspection" },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "resultRef": { "$ref": "#/$defs/nonEmptyString" },
+        "justification": { "$ref": "#/$defs/nonEmptyString" },
+        "manualRecord": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inspector", "recordedAt", "result"],
+          "properties": {
+            "inspector": { "$ref": "#/$defs/nonEmptyString" },
+            "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[^ ]+Z$" },
+            "result": { "const": "pass" }
+          }
+        }
+      }
+    },
+    "legacyEvidenceRequirement": {
+      "deprecated": true,
+      "description": "Deprecated aliases are normalized by the runtime and must not be emitted as evidence records.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EVIDENCE-[0-9]{2,}$" },
+        "kind": { "enum": ["gate", "test", "diff", "review"] },
+        "description": { "$ref": "#/$defs/nonEmptyString" },
+        "gateId": { "$ref": "#/$defs/gateId" },
+        "resultRef": { "$ref": "#/$defs/nonEmptyString" },
+        "testSelector": { "$ref": "#/$defs/nonEmptyString" },
+        "justification": { "$ref": "#/$defs/nonEmptyString" },
+        "manualRecord": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inspector", "recordedAt", "result"],
+          "properties": {
+            "inspector": { "$ref": "#/$defs/nonEmptyString" },
+            "recordedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[^ ]+Z$" },
+            "result": { "const": "pass" }
+          }
+        }
+      }
+    },
+    "acceptanceCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-[0-9]{2,}$" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidenceRequirement" }
+        }
+      }
+    },
+    "positiveInteger": { "type": "integer", "minimum": 1 },
+    "positiveNumber": { "type": "number", "exclusiveMinimum": 0 },
+    "nullablePositiveInteger": { "type": ["integer", "null"], "minimum": 1 },
+    "nullablePositiveNumber": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxAttempts",
+        "maxAgentCalls",
+        "maxReviewCycles",
+        "maxDiagnosisCycles",
+        "maxElapsedMinutes",
+        "maxEstimatedCost",
+        "maxTokens"
+      ],
+      "properties": {
+        "maxAttempts": { "$ref": "#/$defs/positiveInteger" },
+        "maxAgentCalls": { "$ref": "#/$defs/positiveInteger" },
+        "maxReviewCycles": { "$ref": "#/$defs/positiveInteger" },
+        "maxDiagnosisCycles": { "$ref": "#/$defs/positiveInteger" },
+        "maxElapsedMinutes": { "$ref": "#/$defs/positiveNumber" },
+        "maxEstimatedCost": { "$ref": "#/$defs/nullablePositiveNumber" },
+        "maxTokens": { "$ref": "#/$defs/nullablePositiveInteger" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gateIds"],
+      "properties": {
+        "gateIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/gateId" }
+        }
+      }
+    },
+    "revalidationTrigger": {
+      "enum": [
+        "after-lock",
+        "before-worktree",
+        "before-agent-call",
+        "after-agent-call",
+        "after-diff",
+        "after-gate",
+        "before-review",
+        "after-review",
+        "before-diagnosis",
+        "after-diagnosis",
+        "before-acceptance",
+        "before-commit",
+        "after-commit",
+        "on-resume",
+        "after-resume-reconciliation",
+        "before-final-review",
+        "after-global-diff",
+        "before-global-acceptance",
+        "before-pull-request"
+      ]
+    },
+    "revalidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["triggers", "driftPolicy"],
+      "properties": {
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/revalidationTrigger" }
+        },
+        "driftPolicy": { "const": "block" }
+      }
+    },
+    "documentationImpact": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "paths"],
+          "properties": {
+            "kind": { "const": "paths" },
+            "paths": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/path" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "justification"],
+          "properties": {
+            "kind": { "const": "none" },
+            "justification": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      ]
+    },
+    "testing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "gateIds", "rationale"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "gateIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/gateId" }
+        },
+        "rationale": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "isolation", "writable", "autoCommit", "allowPullRequest", "correctionStep"],
+      "properties": {
+        "adapter": { "const": "opencode" },
+        "isolation": { "const": "git-worktree" },
+        "writable": { "const": true },
+        "autoCommit": { "type": "boolean" },
+        "allowPullRequest": { "type": "boolean" },
+        "correctionStep": { "const": false }
+      }
+    }
+  }
+}

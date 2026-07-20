@@ -1,0 +1,104 @@
+version: 1
+gates:
+  - id: specs-lint
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/lint-specs.cjs]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    category: validation
+  - id: workflow-tests
+    resourceId: node-runtime
+    executable: node
+    args: [--test, scripts/workflow/test-*.cjs]
+    cwd: repo-root
+    timeoutMs: 120000
+    maxOutputBytes: 1048576
+    category: test
+  - id: verify-pack
+    resourceId: bash-runtime
+    executable: bash
+    args: [scripts/verify.sh]
+    cwd: repo-root
+    timeoutMs: 600000
+    maxOutputBytes: 4194304
+    category: pack
+  - id: commands-claude-check
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/build-claude-commands.cjs, --dry-run]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 524288
+    category: generated-artifact
+  - id: commands-opencode-check
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/build-opencode-commands.cjs, --dry-run]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 524288
+    category: generated-artifact
+  - id: agent-templates-check
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/build-agent-templates.cjs, --check]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 524288
+    category: generated-artifact
+  - id: plugin-manifest-check
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/build-plugin-manifest.cjs, --check]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 524288
+    category: generated-artifact
+  - id: plugin-manifest-lint
+    resourceId: node-runtime
+    executable: node
+    args: [scripts/lint-plugin-manifest.cjs]
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 524288
+    category: validation
+  - id: revalidation
+    resourceId: git
+    executable: git
+    args: [rev-parse, --verify, HEAD]
+    cwd: repo-root
+    timeoutMs: 10000
+    maxOutputBytes: 65536
+    category: revalidation
+  - id: context7-check
+    type: mcp
+    server: context7
+    tool: resolve-library-id
+    args:
+      libraryName: ""
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    category: validation
+  - id: websearch-verify
+    type: mcp
+    server: websearch
+    tool: search
+    args:
+      query: ""
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    category: validation
+  - id: gh-grep-audit
+    type: mcp
+    server: gh-grep
+    tool: search_code
+    args:
+      query: ""
+    cwd: repo-root
+    timeoutMs: 30000
+    maxOutputBytes: 262144
+    category: validation

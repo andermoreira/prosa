@@ -1,0 +1,16 @@
+title = "prosa gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Somente valores fictícios explícitos usados em evals e fixtures"
+regexes = [
+  '''JWT_SECRET=supersecret''',
+  # Fixture de scripts/workflow/test-artifacts.cjs: alimenta o sanitizador com um JWT falso para
+  # provar que ele redige. Header e payload são o exemplo canônico ({"alg":"HS256"} / {"sub":
+  # "1234567890"}) e a assinatura é a string literal "signature-secret" — não há material real.
+  # Casado por valor exato, e não pelo caminho do arquivo, para que um segredo de verdade que caia
+  # nesse mesmo arquivo continue sendo detectado.
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.signature-secret''',
+]

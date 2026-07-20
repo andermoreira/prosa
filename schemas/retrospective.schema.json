@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ia.local/schemas/retrospective.schema.json",
+  "title": "Workflow retrospective",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "retrospectiveId",
+    "runId",
+    "outcome",
+    "metrics",
+    "observations",
+    "findingsBacklog",
+    "proposals",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "retrospectiveId": { "type": "string", "pattern": "^retrospective-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "runId": { "type": "string", "pattern": "^run-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "outcome": { "enum": ["succeeded", "blocked", "failed", "cancelled"] },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "observations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "findingsBacklog": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^finding-[A-Za-z0-9][A-Za-z0-9._-]*$" }
+    },
+    "proposals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/proposal" }
+    },
+    "createdAt": { "$ref": "#/$defs/nonEmptyString" }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableNonNegativeNumber": { "type": ["number", "null"], "minimum": 0 },
+    "nullableNonNegativeInteger": { "type": ["integer", "null"], "minimum": 0 },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempts", "agentCalls", "reviewCycles", "diagnosisCycles", "elapsedMinutes", "estimatedCost", "tokens", "reworkCycles"],
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 0 },
+        "agentCalls": { "type": "integer", "minimum": 0 },
+        "reviewCycles": { "type": "integer", "minimum": 0 },
+        "diagnosisCycles": { "type": "integer", "minimum": 0 },
+        "elapsedMinutes": { "type": "number", "minimum": 0 },
+        "estimatedCost": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "tokens": { "$ref": "#/$defs/nullableNonNegativeInteger" },
+        "reworkCycles": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "summary", "artifactIds"],
+      "properties": {
+        "category": { "enum": ["outcome", "budget", "rework", "finding", "evidence", "documentation", "process"] },
+        "summary": { "$ref": "#/$defs/nonEmptyString" },
+        "artifactIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^artifact-[A-Za-z0-9][A-Za-z0-9._-]*$" }
+        }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "rationale", "autoApply"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/nonEmptyString" },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" },
+        "autoApply": { "const": false }
+      }
+    }
+  }
+}

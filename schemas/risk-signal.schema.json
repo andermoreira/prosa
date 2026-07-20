@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ia.local/schemas/risk-signal.schema.json",
+  "title": "Risk escalation signal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "kind",
+    "minimumLevel",
+    "reason",
+    "evidenceRefs",
+    "observedAt",
+    "fingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "source": { "$ref": "#/$defs/source" },
+    "kind": { "$ref": "#/$defs/identifier" },
+    "minimumLevel": { "enum": ["autonomous", "approval_required", "restricted"] },
+    "reason": { "$ref": "#/$defs/boundedText" },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reference" }
+    },
+    "observedAt": { "$ref": "#/$defs/timestamp" },
+    "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    },
+    "boundedText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\u0000-\\u0020\\u007f-\\u009f]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "$ref": "#/$defs/identifier" },
+        "id": { "$ref": "#/$defs/identifier" }
+      }
+    }
+  }
+}
