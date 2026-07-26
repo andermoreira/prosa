@@ -7,8 +7,12 @@
   },
   "scripts": {
     "audit:high": "npm audit --audit-level=high",
-    "test": "node --test scripts/workflow/test-*.cjs",
-    "test:workflow": "node --test scripts/workflow/test-*.cjs"
+    "lint:specs": "node scripts/lint-specs.cjs",
+    "test": "npm run test:hermetic",
+    "test:capabilities": "node --test scripts/workflow/test-sandbox-runtime-macos.cjs scripts/workflow/test-mcp.cjs",
+    "test:hermetic": "node --test --test-skip-pattern='^(macOS sandbox|private Git facade|reports the optional 15-sample sandbox|handshake and tools/list with real MCP server|tools/call returns structured content for valid library|rejects tool not found in server capabilities)' scripts/workflow/test-*.cjs",
+    "test:workflow": "npm run test:hermetic",
+    "verify": "bash scripts/verify.sh"
   },
   "devDependencies": {
     "ajv": "8.20.0",
