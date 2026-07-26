@@ -1,46 +1,70 @@
-# prosa
+# Prosa
 
-Motor de orquestração de agentes autônomos: execução de specs por pipeline automática, com
-sandbox de SO coercitivo, política de risco e HITL, lock de git worktree, broker de dependency
-vetting e detecção de spec-code drift.
+[![Prosa social preview](assets/social-preview.png)](examples/public-alpha/README.md)
 
-Extraído do repositório [`ia`](https://github.com/andersonmalves/ia) (pack de config para
-assistentes de IA) em 2026-07-20, sem histórico de commits — os dois projetos cresceram juntos
-por conveniência, mas são produtos diferentes: `ia` é um pack de config maduro e estável;
-`prosa` é este motor, ainda em desenvolvimento ativo.
+Prosa is an alpha orchestration engine that turns approved specifications into bounded,
+reviewable agent workflows. It combines contract validation, isolated Git worktrees, risk policy,
+human checkpoints and evidence-backed acceptance without granting the agent authority to publish.
 
-## Layout
+> **Alpha:** the repository is ready for evaluation and experimentation, not production use.
+> Distribution is source-only; the npm package remains private.
 
-```
-prosa/
-├── scripts/workflow/     ← orchestrator, adapters, sandbox, budget, git, testes
-├── schemas/               ← contratos JSON Schema (state, review, diagnosis, risk-signal, step, spec, ...)
-├── workflow/               ← gates.yaml, resources.yaml, risk-policy.yaml
-├── specs/                 ← specs ativas e steps (mesma convenção do ia)
-├── adr/                   ← decisões arquiteturais (numeração herdada do ia; ver nota abaixo)
-├── docs/workflows/         ← runbook e guia de desenvolvimento do pipeline
-├── docs/audits/            ← auditorias específicas do motor (sandbox, risk/HITL)
-└── commands/               ← run-spec, review-spec, resume-spec (ainda não empacotados como
-                              slash commands — eram commands do Cursor/Claude Code no ia)
-```
+## Try the deterministic demo
 
-## Numeração dos ADRs
-
-Os ADRs mantiveram os números que já tinham no `ia` (015–019, 021–027) para preservar
-rastreabilidade com CHANGELOG e cross-references antigas. Uma exceção: o ADR de sandbox de
-gates (`028-sandbox-de-gates-de-execucao-de-worktree.md`) tinha uma branch local não mergeada no
-`ia` que colidia com o número 024 (já usado por "Contrato estruturado de implementação do
-step") — foi renumerado para 028 na extração, livre aqui porque o 028/029 do `ia` (adapters
-Codex CLI/opencode) não migraram.
-
-## Rodando os testes
+Prerequisites: Node.js 22 and npm.
 
 ```bash
-npm install
-npm test   # node --test scripts/workflow/test-*.cjs
+git clone https://github.com/andersonmalves/prosa.git
+cd prosa
+npm ci --ignore-scripts
+npm run verify
+node scripts/workflow/demo-public-alpha.cjs
 ```
 
-## Estado
+The demo takes less than a minute and makes no agent, credential, paid-service or network call. It
+validates real Prosa contracts and walks through confined execution, a gate, read-only review,
+explicit human decision and a sanitized report. See the
+[public alpha guide](docs/workflows/public-alpha.md) for the trust boundary and expected output.
 
-Em desenvolvimento ativo. `scripts/workflow/` começou em 2026-07-16. Duas frentes recentes
-(dependency vetting, spec-code drift) ainda estão em fase de discovery/spec, sem implementação.
+## What is implemented
+
+- versioned spec and atomic-step contracts with semantic validation;
+- explicit DAG, state machine, budgets, retries and crash-safe resume;
+- per-attempt Git worktrees and repository-level locking;
+- risk classification and binding-specific human approval checkpoints;
+- read-only review snapshots, structured findings and evidence-backed acceptance;
+- sanitized, hashed artifacts and final reports;
+- opt-in commit and pull-request operations, independent from execution authority;
+- macOS OS-level sandbox policies for supported agent and gate paths.
+
+## Experimental and planned
+
+The OpenCode, Cursor, MCP and macOS sandbox integrations are experimental and fail closed when a
+required capability is unavailable. Linux and Windows do not yet have a supported coercive agent
+sandbox. Dependency vetting and spec-code drift currently exist as approved design specifications,
+not shipped runtime behavior.
+
+## Repository map
+
+```text
+scripts/workflow/   orchestrator, adapters, sandbox and tests
+schemas/            JSON Schema contracts
+workflow/           gate, resource and risk-policy catalogs
+specs/              active specifications and atomic steps
+adr/                accepted architectural decisions
+docs/workflows/     operating guides
+docs/audits/        dated verification records
+commands/           source command definitions; not a packaged CLI
+```
+
+The ADR numbers preserve references from the private configuration pack where Prosa originated;
+that repository is not required to install, test or evaluate this project.
+
+## Security and support
+
+Only the current `main` branch is supported during the alpha. Read
+[SECURITY.md](SECURITY.md) before reporting a vulnerability. General feature requests and
+contribution support are not promised in this first public cycle.
+
+Licensed under the [MIT License](LICENSE). Third-party attribution is recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
