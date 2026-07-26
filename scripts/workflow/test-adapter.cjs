@@ -25,8 +25,37 @@ function normalizeTestSandboxPolicy(input) {
   finally { Object.defineProperty(process, 'platform', descriptor); }
 }
 
+function resolveTestExecutable(executable) {
+  if (executable === 'opencode' || executable === 'agent') return process.execPath;
+  return sandboxModule.resolveExecutable(executable);
+}
+
+function createHermeticSandboxRunner(options = {}) {
+  const execute = options.runProcess || processModule.runProcess;
+  return async (input) => {
+    const env = input.env || {};
+    return execute({
+      executable: input.executable,
+      args: input.args || [],
+      root: input.policy.filesystem.target,
+      cwd: '.',
+      envAllowlist: Object.keys(env),
+      env,
+      input: input.input,
+      timeoutMs: input.timeoutMs,
+      maxOutputBytes: input.maxOutputBytes,
+    });
+  };
+}
+
 function testSandboxModule(overrides = {}) {
-  return { ...sandboxModule, normalizeSandboxPolicy: normalizeTestSandboxPolicy, ...overrides };
+  return {
+    ...sandboxModule,
+    normalizeSandboxPolicy: normalizeTestSandboxPolicy,
+    resolveExecutable: resolveTestExecutable,
+    createSandboxRunner: createHermeticSandboxRunner,
+    ...overrides,
+  };
 }
 
 function createLocalAdapter(options = {}) {
@@ -202,6 +231,12 @@ function fakeProcess(options) {
   }
   return processModule.runProcess(options);
 }
+
+test('adapter fixtures resolve agent commands through a controlled seam', () => {
+  const sandbox = testSandboxModule();
+  assert.equal(sandbox.resolveExecutable('opencode'), process.execPath);
+  assert.equal(sandbox.resolveExecutable('agent'), process.execPath);
+});
 
 test('production adapter fails preflight before runtime mutation for OpenCode, base, and catalog errors', async () => {
   for (const failure of ['opencode', 'base', 'catalog']) {

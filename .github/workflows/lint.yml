@@ -31,8 +31,8 @@ jobs:
       - name: Audit de dependências npm (high)
         run: npm audit --audit-level=high
 
-      - name: Testes do workflow
-        run: npm run test:workflow
+      - name: Verificação hermética do workflow
+        run: npm run verify
 
       - name: Secret scanning (gitleaks)
         run: |
