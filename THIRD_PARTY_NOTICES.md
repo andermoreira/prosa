@@ -25,6 +25,17 @@ conservadora de atribuição e não constitui parecer jurídico. Herdado do pack
 | [actions/setup-node](https://github.com/actions/setup-node) | Runtime Node.js 22 | MIT |
 | [gitleaks](https://github.com/gitleaks/gitleaks) | Detecção de secrets (release v8.24.2; tarball Linux x64 verificado por SHA-256) | MIT |
 
+## Dependências de desenvolvimento
+
+| Pacote | Uso | Licença |
+|---|---|---|
+| `ajv@8.20.0` | Validação JSON Schema | MIT |
+| `yaml@2.9.0` | Parsing YAML seguro dos contratos | ISC |
+
+O lockfile também fixa dependências transitivas sob MIT, BSD-3-Clause, ISC e a alternativa
+BSD-3-Clause/GPL-2.0 declarada por `node-forge`. A auditoria de publicação registra o inventário
+verificado; este arquivo destaca componentes que exigem atribuição ou contexto operacional.
+
 ## Apache License 2.0 (Anthropic Sandbox Runtime)
 
 ```text
