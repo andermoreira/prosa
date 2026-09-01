@@ -196,7 +196,10 @@ function validateAttemptWorktree(options) {
     try { return fs.realpathSync(entry.path) === realPath; } catch { return false; }
   });
   if (!listed) fail('GIT_WORKTREE_NOT_LISTED', 'Attempt path is not a listed Git worktree');
-  if (listed.head !== baseSha || !listed.detached) {
+  // allowedHead admits the recorded committed head so a crash between the removal-pending persist
+  // and `git worktree remove` stays recoverable on resume; anything else still fails closed.
+  const allowedHeads = options.allowedHead === undefined ? [baseSha] : [baseSha, options.allowedHead];
+  if (!listed.detached || !allowedHeads.includes(listed.head)) {
     fail('GIT_WORKTREE_BASE_MISMATCH', 'Attempt worktree must remain detached at its approved base SHA', { expected: baseSha, actual: listed.head });
   }
   return { repository, path: realPath, baseSha, headSha: listed.head, detached: true };
@@ -251,9 +254,7 @@ function commitPath(candidate, label) {
 }
 
 function matchesPrediction(candidate, prediction) {
-  if (typeof path.matchesGlob === 'function') return path.matchesGlob(candidate, prediction);
-  const escaped = prediction.replace(/[.+^$|\\]/g, '\\$&').replaceAll('**', '\0').replaceAll('*', '[^/]*').replaceAll('?', '[^/]').replaceAll('\0', '.*');
-  return new RegExp(`^${escaped}$`, 'u').test(candidate);
+  return path.matchesGlob(candidate, prediction);
 }
 
 function normalizeCommitPaths(acceptedPaths, predictedFiles) {

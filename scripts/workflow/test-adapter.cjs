@@ -1158,3 +1158,95 @@ test('default adapter reviews an actual closed snapshot while retaining its lock
     fs.rmSync(cleanupRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
   }
 });
+
+test('resume recovers when a crash lands between the removal-pending persist and worktree removal', async () => {
+  const { root, validation } = fixture();
+  const policy = await riskPolicyModule.loadRiskPolicyFromGit(root, validation.baseSha);
+  validation.steps[0].schemaVersion = '2.0.0';
+  validation.steps[0].changeType = 'documentation';
+  validation.riskPolicy = policy.value;
+  validation.riskAssessments = [{
+    stepId: validation.steps[0].id,
+    assessment: riskPolicyModule.assessRisk({ policyRecord: policy.value, step: validation.steps[0] }),
+  }];
+  validation.spec.execution.autoCommit = true;
+  validation.spec.budgets.maxAttemptsPerStep = 3;
+  validation.spec.budgets.maxAttemptsTotal = 3;
+  validation.spec.budgets.maxAgentCallsPerStep = 5;
+  validation.spec.budgets.maxAgentCallsTotal = 5;
+  validation.spec.budgets.maxReviewCyclesPerStep = 3;
+  validation.spec.budgets.maxReviewCyclesTotal = 3;
+  validation.steps[0].budgets.maxAgentCalls = 5;
+  validation.steps[0].budgets.maxReviewCycles = 3;
+  validation.steps[0].budgets.maxAttempts = 3;
+  const reviewOutput = JSON.stringify({
+    schemaVersion: '1.0.0', decision: 'approved', summary: 'Committed output is valid.', confidence: 'high', findings: [],
+  });
+  const modules = {
+    sandbox: testSandboxModule(),
+    opencode: {
+      ...opencodeModule,
+      createOpenCodeAdapter({ artifacts }) {
+        return {
+          async invoke(input) {
+            if (input.role === 'executor') {
+              write(input.worktree, 'src/output.txt', 'provider output\n');
+            }
+            const artifactRef = await artifacts.preserveAgentResponse({
+              operationId: input.operationId, role: input.role, attempt: input.attempt,
+              response: input.role === 'reviewer' ? reviewOutput : 'Passo implementado.', process: { status: 'succeeded' },
+              sandboxPolicyHash: input.sandboxPolicy.policyHash,
+            });
+            return { ok: true, operationId: input.operationId, artifactRef, metrics: { estimatedCost: null, tokens: null } };
+          },
+        };
+      },
+    },
+  };
+  // Morte do processo no instante exato da janela: cleanupWorktree já persistiu o worktree
+  // commitado como removal-pending, mas `git worktree remove` ainda não rodou.
+  let crashOnWorktreeRemove = true;
+  const crashProcess = async (input) => {
+    if (crashOnWorktreeRemove && input.executable === 'git' && input.args[0] === 'worktree' && input.args[1] === 'remove') {
+      throw Object.assign(new Error('simulated crash before worktree removal'), { code: 'TEST_CRASH' });
+    }
+    return fakeProcess(input);
+  };
+  try {
+    await assert.rejects(
+      orchestrator.run({ specPath: validation.specPath, baseSha: validation.baseSha, allowCommit: true }, {
+        repoRoot: root, validationResult: validation, runProcess: crashProcess, modules,
+      }),
+      { code: 'TEST_CRASH' },
+    );
+    const runtimeRoot = path.join(root, '.workflow-runtime', 'runs', 'run-pipeline');
+    const interrupted = JSON.parse(fs.readFileSync(path.join(runtimeRoot, 'state.json'), 'utf8'));
+    assert.equal(interrupted.state, 'SUCCEEDED');
+    assert.equal(interrupted.steps[0].state, 'COMMITTED');
+    assert.equal(interrupted.worktrees[0].status, 'removal-pending');
+    assert.notEqual(interrupted.worktrees[0].headSha, interrupted.worktrees[0].parentSha);
+    const worktreePath = interrupted.worktrees[0].path;
+    assert.equal(fs.existsSync(worktreePath), true);
+    crashOnWorktreeRemove = false;
+    const resumed = await orchestrator.resume({ specPath: validation.specPath, baseSha: validation.baseSha }, {
+      repoRoot: root, validationResult: validation, runProcess: fakeProcess, modules,
+    });
+    assert.equal(resumed.ok, true, JSON.stringify(resumed));
+    assert.equal(resumed.resumed, true);
+    assert.equal(resumed.status, 'SUCCEEDED');
+    const resumedState = JSON.parse(fs.readFileSync(path.join(runtimeRoot, 'state.json'), 'utf8'));
+    assert.equal(resumedState.worktrees[0].status, 'removed');
+    assert.equal(resumedState.worktrees[0].headSha, interrupted.worktrees[0].headSha);
+    assert.equal(resumedState.attempts[0].status, 'succeeded');
+    assert.equal(fs.existsSync(worktreePath), false);
+    assert.equal(fs.existsSync(path.join(root, '.workflow-runtime', 'locks', 'repository.lock')), false);
+  } finally {
+    const snapshots = path.join(root, '.workflow-runtime', 'runs', 'run-pipeline', 'snapshots');
+    if (fs.existsSync(snapshots)) {
+      for (const name of fs.readdirSync(snapshots)) fs.chmodSync(path.join(snapshots, name), 0o700);
+    }
+    const cleanupRoot = `${root}-cleanup`;
+    fs.renameSync(root, cleanupRoot);
+    fs.rmSync(cleanupRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+  }
+});

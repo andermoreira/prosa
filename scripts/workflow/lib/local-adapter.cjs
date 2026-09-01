@@ -840,7 +840,8 @@ function createLocalAdapter(options = {}) {
       for (const worktree of state.worktrees.filter((entry) => entry.status === 'removal-pending')) {
         if (fs.existsSync(worktree.path)) {
           modules.git.removeAttemptWorktree({
-            cwd: repoRoot, worktreePath: worktree.path, baseSha: worktree.parentSha, force: true,
+            cwd: repoRoot, worktreePath: worktree.path, baseSha: worktree.parentSha,
+            allowedHead: worktree.headSha, force: true,
           });
         }
         worktree.status = 'removed';
@@ -848,7 +849,8 @@ function createLocalAdapter(options = {}) {
         const stepRecord = state.steps.find((entry) => entry.id === worktree.stepId);
         if (stepRecord?.worktreeId === worktree.id) stepRecord.worktreeId = null;
         const attempt = state.attempts.find((entry) => entry.id === stepRecord?.attemptIds.at(-1));
-        if (attempt && !['failed', 'cancelled'].includes(attempt.status)) {
+        const committed = typeof worktree.headSha === 'string' && worktree.headSha !== worktree.parentSha;
+        if (!committed && attempt && !['failed', 'cancelled'].includes(attempt.status)) {
           attempt.status = 'cancelled';
           attempt.finishedAt ||= new Date().toISOString();
         }
@@ -2117,9 +2119,7 @@ function createLocalAdapter(options = {}) {
     const predicted = input.step.predictedFiles;
     const accepted = acceptedPaths.length > 0 && acceptedPaths.length === intent.acceptedPaths?.length
       && acceptedPaths.every((candidate, index) => candidate === intent.acceptedPaths[index])
-      && acceptedPaths.every((candidate) => predicted.some((pattern) => (
-      typeof path.matchesGlob === 'function' ? path.matchesGlob(candidate, pattern) : candidate === pattern
-    )));
+      && acceptedPaths.every((candidate) => predicted.some((pattern) => path.matchesGlob(candidate, pattern)));
     if (!parent.ok || outputText(parent).trim() !== record.parentSha || !tree.ok
       || outputText(tree).trim() !== intent.acceptedTreeSha || intent.parentSha !== record.parentSha
       || intent.attemptId !== record.attemptId || intent.worktreeId !== record.id || !names.ok || !accepted) {

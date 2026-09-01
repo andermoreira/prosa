@@ -117,6 +117,23 @@ test('cleanup validates listing/base and preserves a dirty worktree on error', (
   removeAttemptWorktree({ cwd: root, worktreePath: attempt.path, baseSha: approved.sha });
 });
 
+test('removal on resume admits the recorded committed head and still rejects unknown drift', () => {
+  const root = temporaryRepository();
+  const approved = base(root);
+  const attempt = createAttemptWorktree({ cwd: root, runtimeRoot: path.join(root, '.workflow-runtime'), attemptId: 'committed-removal', baseSha: approved.sha });
+  write(attempt.path, 'src/committed.txt', 'committed\n');
+  git(attempt.path, ['add', '.']);
+  git(attempt.path, ['commit', '-qm', 'step output']);
+  const committedHead = git(attempt.path, ['rev-parse', 'HEAD']);
+  assert.notEqual(committedHead, approved.sha);
+  assert.throws(
+    () => removeAttemptWorktree({ cwd: root, worktreePath: attempt.path, baseSha: approved.sha, force: true }),
+    { code: 'GIT_WORKTREE_BASE_MISMATCH' },
+  );
+  removeAttemptWorktree({ cwd: root, worktreePath: attempt.path, baseSha: approved.sha, allowedHead: committedHead, force: true });
+  assert.equal(fs.existsSync(attempt.path), false);
+});
+
 test('collects Git R rename evidence once while preserving both paths', () => {
   const root = temporaryRepository({ 'src/original.txt': 'one\ntwo\nthree\nfour\nfive\n' });
   const approved = base(root);
