@@ -40,7 +40,7 @@ este runbook não os apresenta como validados em produção.
 | SRT pinado | `npm ls @anthropic-ai/sandbox-runtime` mostra somente `0.0.66` |
 | Backend macOS | `/usr/bin/sandbox-exec -h` responde e `node --test scripts/workflow/test-sandbox-runtime-macos.cjs` passa |
 | Auth OpenCode Go | `OPENCODE_API_KEY` disponível no ambiente; o sandbox não reabre o arquivo real de auth |
-| Árvore principal limpa | `git status --porcelain` vazio — `git.cjs:99` bloqueia com `GIT_PREFLIGHT_DIRTY` |
+| Árvore principal limpa | `git status --porcelain` vazio — `git.cjs:115` bloqueia com `GIT_PREFLIGHT_DIRTY` |
 | Sem worktree residual | `git worktree list` mostra só o principal |
 | Sem runtime residual | `ls .workflow-runtime` não existe (senão veja a §6) |
 | **Modelo fora de limite** | ver abaixo — é a armadilha mais cara |
@@ -95,7 +95,7 @@ criado. Espere a ordem do DAG e o `hash`.
 ./scripts/workflow/run-spec.sh specs/<feature>.md --base-sha "$(git rev-parse HEAD)"
 ```
 
-`--base-sha` **precisa ser o HEAD atual**: `git.cjs:107` exige que base aprovada, SHA e HEAD do
+`--base-sha` **precisa ser o HEAD atual**: `git.cjs:135` exige que base aprovada, SHA e HEAD do
 worktree principal sejam o mesmo commit, senão `GIT_BASE_MISMATCH`. O `baseSha` documentado na spec
 é proveniência (NOTE-03); só o CLI autoriza mutação.
 

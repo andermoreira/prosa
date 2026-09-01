@@ -85,7 +85,7 @@ globalGates: [workflow-tests]
 
 **Status:** aguardando aprovação da spec
 **Data:** 2026-07-19
-**Origem:** revisão profunda do sandbox (achados 2 e 3), sobre a base do [ADR 021](../adr/021-sandbox-de-so-para-chamadas-de-agentes.md) e da spec [prosa-os-sandboxing](archive/../prosa-os-sandboxing.md)
+**Origem:** revisão profunda do sandbox (achados 2 e 3), sobre a base do [ADR 021](../adr/021-sandbox-de-so-para-chamadas-de-agentes.md) e da spec [prosa-os-sandboxing](prosa-os-sandboxing.md)
 
 ## User stories
 

@@ -187,15 +187,16 @@ bloqueante na CI e deve ser executado localmente antes do handoff:
 npm ci --ignore-scripts
 npm run audit:high
 npm run test:workflow
-npm run verify:workflow
+npm run verify
 bash -n scripts/verify.sh scripts/workflow/validate-spec.sh scripts/workflow/run-spec.sh scripts/workflow/resume-spec.sh scripts/workflow/review-spec.sh
 git diff --check
 ```
 
 Na CI, a instalação, `npm audit --audit-level=high` e `npm run test:workflow` executam nessa ordem
-antes dos checks existentes. `verify:workflow` não reinstala dependências: ele falha com diagnóstico
-acionável se o lockfile estiver inconsistente ou se Ajv/YAML estiverem ausentes/divergentes, roda a
-suíte workflow uma vez e então preserva os checks existentes e a política local de gitleaks.
+antes dos checks existentes. `verify` não reinstala dependências: ele falha com diagnóstico
+acionável se o lockfile estiver inconsistente ou se Ajv/YAML estiverem ausentes/divergentes, roda o
+lint estrutural de specs e a suíte workflow, e então preserva os checks existentes e a política
+local de gitleaks.
 
 - `WORKFLOW_SEMANTIC_INVALID`: corrija aprovação, sequência, dependências, IDs ou budgets.
 - `GIT_PREFLIGHT_DIRTY`: limpe o worktree principal sem descartar trabalho não relacionado.

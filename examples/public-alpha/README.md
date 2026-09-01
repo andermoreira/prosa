@@ -23,4 +23,4 @@ writes only its report to standard output. It does not spawn an agent, inspect t
 environment, access Git state or open a network connection.
 
 This is a learning and evaluation path for the alpha. Production runs use the adapters, worktrees,
-OS sandbox and persisted evidence described in [`docs/workflows/pipeline.md`](../../docs/workflows/pipeline.md).
+OS sandbox and persisted evidence described in [`docs/workflows/automated-spec-pipeline.md`](../../docs/workflows/automated-spec-pipeline.md).
