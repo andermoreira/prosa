@@ -109,3 +109,53 @@ test('fails with unavailable server', async () => {
     { code: 'MCP_SERVER_UNAVAILABLE' },
   );
 });
+
+// Hermético: um servidor stdio conforme emitido por `node -e`, que fala NDJSON, envia uma
+// notificação JSON-RPC antes da resposta de initialize e responde erro para a tool `explode`.
+const FAKE_SERVER_SCRIPT = [
+  "const readline = require('node:readline');",
+  'const rl = readline.createInterface({ input: process.stdin });',
+  "rl.on('line', (line) => {",
+  '  const request = JSON.parse(line);',
+  "  if (request.method === 'initialize') {",
+  "    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/message', params: { level: 'info', data: 'boot' } }) + '\\n');",
+  "    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'fake-mcp', version: '0.0.0' } } }) + '\\n');",
+  "  } else if (request.method === 'tools/list') {",
+  "    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 2, result: { tools: [{ name: 'echo', description: 'Echoes its input', inputSchema: { type: 'object' } }, { name: 'explode', description: 'Always fails', inputSchema: { type: 'object' } }] } }) + '\\n');",
+  "  } else if (request.method === 'tools/call') {",
+  "    if (request.params.name === 'explode') {",
+  "      process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 3, error: { code: -32000, message: 'tool exploded' } }) + '\\n');",
+  '    } else {',
+  "      process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 3, result: { content: [{ type: 'text', text: 'echo' }] } }) + '\\n');",
+  '    }',
+  '  }',
+  '});',
+].join('\n');
+
+const FAKE_SERVER = {
+  id: 'fake-mcp',
+  type: 'mcp-server',
+  executable: process.execPath,
+  args: ['-e', FAKE_SERVER_SCRIPT],
+  capabilities: ['mcp:tools'],
+  envAllowlist: ['HOME', 'PATH', 'TMPDIR'],
+  readOnly: true,
+  timeoutMs: 30000,
+  maxOutputBytes: 262144,
+};
+
+test('completes the handshake when a conforming server emits notifications', async () => {
+  const result = await runMcpGate({ server: FAKE_SERVER, tool: 'echo', args: { value: 'ok' } });
+  assert.equal(result.ok, true);
+  assert.equal(result.passed, true);
+  assert.equal(result.server, 'fake-mcp');
+  assert.equal(result.tool, 'echo');
+  assert.equal(result.content.content[0].text, 'echo');
+});
+
+test('surfaces a JSON-RPC error from tools/call as MCP_TOOL_ERROR', async () => {
+  await assert.rejects(
+    () => runMcpGate({ server: FAKE_SERVER, tool: 'explode', args: {} }),
+    (error) => error.code === 'MCP_TOOL_ERROR' && /tool exploded/.test(error.message),
+  );
+});

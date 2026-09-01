@@ -25,22 +25,31 @@ function jsonRpcRequest(id, method, params) {
   return JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
 }
 
+// One-shot stdio servers may emit JSON-RPC notifications (e.g. logging) or reply with an error
+// alongside the response, so every phase scans NDJSON lines instead of parsing stdout as a single
+// JSON document. The response matching the expected request id wins; a matching error response is
+// surfaced as MCP_TOOL_ERROR instead of being silently skipped.
 function parseResponse(text, expectedId) {
-  const trimmed = String(text ?? '').trim();
-  if (trimmed === '') throw mcpError('MCP_RESPONSE_INVALID', 'MCP server returned empty response');
-  let response;
-  try { response = JSON.parse(trimmed); }
-  catch { throw mcpError('MCP_RESPONSE_INVALID', 'MCP server returned non-JSON response'); }
-  if (!response || typeof response !== 'object') {
-    throw mcpError('MCP_RESPONSE_INVALID', 'MCP response is not an object');
+  const lines = String(text ?? '').split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== '');
+  if (lines.length === 0) throw mcpError('MCP_RESPONSE_INVALID', 'MCP server returned empty response');
+  let sawJson = false;
+  let serverError = null;
+  for (const line of lines) {
+    let parsed;
+    try { parsed = JSON.parse(line); }
+    catch { continue; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+    sawJson = true;
+    if (parsed.id !== expectedId) continue;
+    if (parsed.error) {
+      serverError = mcpError('MCP_TOOL_ERROR', `MCP server error: ${parsed.error.message || JSON.stringify(parsed.error)}`, { mcpError: parsed.error });
+      continue;
+    }
+    return parsed.result;
   }
-  if (response.id !== expectedId) {
-    throw mcpError('MCP_RESPONSE_INVALID', `MCP response id ${response.id} does not match request ${expectedId}`);
-  }
-  if (response.error) {
-    throw mcpError('MCP_TOOL_ERROR', `MCP server error: ${response.error.message || JSON.stringify(response.error)}`, { mcpError: response.error });
-  }
-  return response.result;
+  if (serverError) throw serverError;
+  if (!sawJson) throw mcpError('MCP_RESPONSE_INVALID', 'MCP server returned non-JSON response');
+  throw mcpError('MCP_RESPONSE_INVALID', `MCP server returned no response for request ${expectedId}`);
 }
 
 function validateArgs(args) {
@@ -120,18 +129,8 @@ async function runMcpGate(input) {
     const code = listResult.timedOut ? 'MCP_TIMEOUT' : 'MCP_SERVER_UNAVAILABLE';
     throw mcpError(code, `MCP tools/list failed: ${listResult.status}`, { process: processMeta(listResult) });
   }
-  // The server returns both responses — skip the init response, parse the list response
-  const lines = (listResult.stdout.text ?? '').split(/\r?\n/).filter((line) => line.trim() !== '');
-  let tools = [];
-  for (const line of lines) {
-    try {
-      const parsed = JSON.parse(line);
-      if (parsed.id === 2 && !parsed.error) {
-        tools = parsed.result?.tools || [];
-        break;
-      }
-    } catch { /* skip unparseable lines */ }
-  }
+  // The server returns both responses — notifications and the init response are skipped by id
+  const tools = parseResponse(listResult.stdout.text, 2)?.tools || [];
   if (tools.length === 0) throw mcpError('MCP_TOOLS_LIST_EMPTY', 'MCP server returned no tools');
 
   const found = tools.find((t) => t.name === tool);
@@ -159,17 +158,7 @@ async function runMcpGate(input) {
     throw mcpError(code, `MCP tools/call failed: ${callResult.status}`, { process: processMeta(callResult) });
   }
 
-  let content = null;
-  const allLines = (callResult.stdout.text ?? '').split(/\r?\n/).filter((line) => line.trim() !== '');
-  for (const line of allLines) {
-    try {
-      const parsed = JSON.parse(line);
-      if (parsed.id === 3 && !parsed.error) {
-        content = parsed.result;
-        break;
-      }
-    } catch { /* skip unparseable lines */ }
-  }
+  const content = parseResponse(callResult.stdout.text, 3);
   if (!content) throw mcpError('MCP_RESPONSE_INVALID', 'MCP tools/call did not return a valid result');
 
   const sanitized = sanitize(content, { maxBytes: maxOutputBytes });
