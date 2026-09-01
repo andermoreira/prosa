@@ -86,14 +86,8 @@ function normalizeChange(root, change) {
   return normalized;
 }
 
-function matchesGlob(candidate, pattern) {
-  if (typeof path.matchesGlob === 'function') return path.matchesGlob(candidate, pattern);
-  const escaped = pattern.replace(/[.+^$|\\]/g, '\\$&').replaceAll('**', '\0').replaceAll('*', '[^/]*').replaceAll('?', '[^/]').replaceAll('\0', '.*');
-  return new RegExp(`^${escaped}$`, 'u').test(candidate);
-}
-
 function matchesArea(candidate, area) {
-  if (GLOB_CHARACTERS.test(area)) return matchesGlob(candidate, area);
+  if (GLOB_CHARACTERS.test(area)) return path.matchesGlob(candidate, area);
   return candidate === area || candidate.startsWith(`${area}/`);
 }
 
@@ -134,7 +128,7 @@ function evaluateScope(options) {
   const actualPaths = changes.flatMap(changePaths);
   const outside = actualPaths.filter((candidate) => !allowedAreas.some((area) => matchesArea(candidate, area)));
   if (outside.length > 0) fail('SCOPE_OUTSIDE_ALLOWED_AREA', 'Changed path is outside all allowed areas', { paths: outside });
-  const unpredicted = actualPaths.filter((candidate) => !predictedFiles.some((pattern) => matchesGlob(candidate, pattern)));
+  const unpredicted = actualPaths.filter((candidate) => !predictedFiles.some((pattern) => path.matchesGlob(candidate, pattern)));
   const status = unpredicted.length > 0 ? 'human_decision' : 'accepted';
   return {
     status,

@@ -534,13 +534,7 @@ function assertStateReferences(state) {
 }
 
 function validateStateSchema(state) {
-  const result = validate('state', state);
-  if (result.ok) return result;
-  const staleSeverityOnly = result.errors.every((error) => {
-    const match = error.path.match(/^\/findings\/([0-9]+)\/severity$/);
-    return error.code === 'SCHEMA_ENUM' && match && state.findings[Number(match[1])]?.severity === 'critical';
-  });
-  return staleSeverityOnly ? { ok: true, value: state, errors: [] } : result;
+  return validate('state', state);
 }
 
 function createInitialRunState(handle, input) {
